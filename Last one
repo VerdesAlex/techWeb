@@ -1,0 +1,122 @@
+You don’t have to implement all of them—each part serves a different purpose. Here’s what you need depending on your setup:  
+
+### **1. Backend Filtering (Required) ✅**  
+You must implement filtering on the backend if you want to request only relevant tasks from the database. This prevents unnecessary data transfer, making your app more efficient.  
+
+- If you're using **MongoDB (Mongoose)**, use a `find` query with regex.  
+- If you're using **SQL (PostgreSQL, MySQL, etc.)**, use `WHERE` with `LIKE` (or ORM equivalents).  
+
+### **2. Client-Side Filtering (Optional)**  
+- If your backend already filters data, client-side filtering is unnecessary.  
+- However, if your API returns **all** tasks, you can filter them in the frontend using JavaScript (e.g., `array.filter()`).  
+
+**Example of client-side filtering (not recommended for large datasets):**  
+```javascript
+const filteredTasks = tasks.filter(task => task.name.toLowerCase().includes(filter.toLowerCase()));
+```
+This is only useful if your dataset is small and already loaded into memory.  
+
+### **3. React Input for Filtering (Optional, but Recommended for Usability)**  
+If you're using React, an input field allows users to filter dynamically by typing. This input should update the **query params** in the API request to fetch filtered results from the backend.  
+
+**Minimal implementation needed:**  
+- **Backend filtering** ✅ (Mandatory for efficiency)  
+- **Frontend input (React/JS UI)** ✅ (Recommended for user experience)  
+
+Let me know if you want a minimal implementation or an optimized one!
+
+
+Sorting is similar to filtering but modifies the **order** of the results rather than **which** results are returned.  
+
+### **1. Backend Sorting (Recommended ✅)**  
+Sorting should be implemented in the backend to improve performance, especially for large datasets. Clients can request sorting via query parameters like `?sort=name&order=asc`.  
+
+#### **MongoDB (Mongoose)**
+```javascript
+app.get('/tasks', async (req, res) => {
+    try {
+        const { name, sort = 'createdAt', order = 'asc' } = req.query;
+        const filter = name ? { name: new RegExp(name, 'i') } : {};
+        const tasks = await Task.find(filter).sort({ [sort]: order === 'asc' ? 1 : -1 });
+        res.json(tasks);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+```
+
+#### **SQL (PostgreSQL/MySQL with Sequelize)**
+```javascript
+app.get('/tasks', async (req, res) => {
+    try {
+        const { name, sort = 'createdAt', order = 'ASC' } = req.query;
+        const whereClause = name ? { name: { [Op.iLike]: `%${name}%` } } : {};
+        const tasks = await Task.findAll({
+            where: whereClause,
+            order: [[sort, order.toUpperCase()]],
+        });
+        res.json(tasks);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+```
+---
+### **2. Client-Side Sorting (Optional)**
+If you've already loaded all tasks, you can sort them in the frontend. This is **only recommended for small datasets** because it requires loading everything into memory.  
+
+```javascript
+const sortedTasks = [...tasks].sort((a, b) => 
+    order === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
+);
+```
+---
+### **3. React UI for Sorting (Recommended for Usability)**
+If using React, add sorting controls:
+
+```javascript
+import { useState, useEffect } from 'react';
+
+function TaskList() {
+    const [tasks, setTasks] = useState([]);
+    const [filter, setFilter] = useState('');
+    const [sort, setSort] = useState('name');
+    const [order, setOrder] = useState('asc');
+
+    useEffect(() => {
+        fetch(`/tasks?name=${encodeURIComponent(filter)}&sort=${sort}&order=${order}`)
+            .then(res => res.json())
+            .then(setTasks);
+    }, [filter, sort, order]);
+
+    return (
+        <div>
+            <input 
+                type="text" 
+                placeholder="Filter by name"
+                value={filter}
+                onChange={e => setFilter(e.target.value)}
+            />
+            <select value={sort} onChange={e => setSort(e.target.value)}>
+                <option value="name">Name</option>
+                <option value="createdAt">Created At</option>
+            </select>
+            <button onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}>
+                {order === 'asc' ? 'Ascending' : 'Descending'}
+            </button>
+            <ul>
+                {tasks.map(task => <li key={task.id}>{task.name}</li>)}
+            </ul>
+        </div>
+    );
+}
+
+export default TaskList;
+```
+---
+### **What Should You Implement?**
+✅ **Backend Sorting (Recommended for efficiency)**  
+✅ **Frontend UI (Recommended for usability)**  
+❌ **Client-Side Sorting (Only if API doesn’t handle sorting)**  
+
+Would you like pagination too? It’s useful if you're working with large datasets.
