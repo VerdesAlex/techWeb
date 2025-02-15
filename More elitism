@@ -1,0 +1,178 @@
+To restrict access to the **Details section of a task** only to **admins** and make it accessible through a button, follow these steps:
+
+---
+
+## **1. Backend (Node.js/Express.js)**
+
+### **Step 1: Add a Route for Task Details**
+Create a route to fetch task details. This route should be protected so only admins can access it.
+
+```javascript
+// routes/tasks.js
+const express = require('express');
+const { Task } = require('../models');
+const auth = require('../middleware/auth');
+const { isAdmin } = require('../middleware/role');
+const router = express.Router();
+
+// Only admins can access task details
+router.get('/:id', auth, isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const task = await Task.findByPk(id);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  res.json(task);
+});
+
+module.exports = router;
+```
+
+---
+
+## **2. Frontend (React)**
+
+### **Step 1: Add a Button for Task Details**
+Add a button to the task list that is only visible to admins. When clicked, it will navigate to the task details page.
+
+```javascript
+// components/TaskList.js
+import React, { useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../AuthContext';
+
+const TaskList = ({ tasks }) => {
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  return (
+    <div>
+      <h1>Tasks</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tasks.map((task) => (
+            <tr key={task.id}>
+              <td>{task.title}</td>
+              <td>{task.description}</td>
+              <td>
+                {user?.role === 'admin' && (
+                  <button onClick={() => navigate(`/tasks/${task.id}/details`)}>
+                    View Details
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+export default TaskList;
+```
+
+---
+
+### **Step 2: Create a Task Details Component**
+Create a component to display the task details. This component will fetch the task details from the backend.
+
+```javascript
+// components/TaskDetails.js
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import axios from 'axios';
+
+const TaskDetails = () => {
+  const { id } = useParams();
+  const [task, setTask] = useState(null);
+
+  useEffect(() => {
+    const fetchTaskDetails = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/tasks/${id}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
+        setTask(response.data);
+      } catch (error) {
+        console.error('Error fetching task details:', error);
+      }
+    };
+
+    fetchTaskDetails();
+  }, [id]);
+
+  if (!task) return <div>Loading...</div>;
+
+  return (
+    <div>
+      <h1>Task Details</h1>
+      <h2>{task.title}</h2>
+      <p>{task.description}</p>
+    </div>
+  );
+};
+
+export default TaskDetails;
+```
+
+---
+
+### **Step 3: Add a Route for Task Details**
+Add a route for the task details page in your `App.js` file. Protect this route so only admins can access it.
+
+```javascript
+// App.js
+import React, { useContext } from 'react';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { AuthContext } from './AuthContext';
+import TaskList from './components/TaskList';
+import TaskDetails from './components/TaskDetails';
+
+const PrivateRoute = ({ children, requiredRole }) => {
+  const { user } = useContext(AuthContext);
+
+  if (!user) return <Navigate to="/login" />;
+  if (requiredRole && user.role !== requiredRole) return <Navigate to="/" />;
+
+  return children;
+};
+
+const App = () => (
+  <Router>
+    <Routes>
+      <Route path="/" element={<TaskList />} />
+      <Route
+        path="/tasks/:id/details"
+        element={
+          <PrivateRoute requiredRole="admin">
+            <TaskDetails />
+          </PrivateRoute>
+        }
+      />
+    </Routes>
+  </Router>
+);
+
+export default App;
+```
+
+---
+
+## **3. Testing**
+1. Log in as a **non-admin user**:
+   - Verify that the **View Details** button is **not visible**.
+   - Attempt to navigate directly to `/tasks/:id/details` and confirm you are redirected.
+
+2. Log in as an **admin user**:
+   - Verify that the **View Details** button is **visible**.
+   - Click the button and confirm you can access the task details page.
+
+---
+
+This implementation ensures that only **admins** can access the **Details section of a task**. Let me know if you need further assistance!
