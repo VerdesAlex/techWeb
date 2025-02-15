@@ -1,0 +1,140 @@
+Paginarea, în contextul unei aplicații web, se referă la procesul de împărțire a unei cantități mari de date (de exemplu, o listă de înregistrări sau rezultate) în mai multe „pagini” mai mici și mai ușor de gestionat. Acest lucru este esențial pentru a îmbunătăți performanța și experiența utilizatorului, deoarece încărcarea și afișarea unui număr mare de date simultan pot fi lente și greoaie.
+
+---
+
+## **Ce înseamnă paginarea?**
+
+### **1. Definiție**
+Paginarea este o tehnică prin care datele sunt împărțite în „bucăți” (pagini) mai mici, iar utilizatorul poate naviga între aceste pagini pentru a vizualiza diferite părți ale setului de date.
+
+### **2. Componente ale paginării**
+- **Pagina curentă**: Pagina pe care se află utilizatorul.
+- **Dimensiunea paginii (page size)**: Numărul de elemente afișate pe o pagină (de exemplu, 10, 20 sau 50 de elemente).
+- **Total de pagini**: Numărul total de pagini necesare pentru a afișa toate datele.
+- **Navigare între pagini**: Butoane sau link-uri pentru a trece la pagina următoare, pagina anterioară sau o pagină specifică.
+
+---
+
+## **De ce este importantă paginarea?**
+
+### **1. Performanță**
+- Reduce cantitatea de date încărcate și afișate simultan, ceea ce îmbunătățește viteza aplicației.
+- Reduce presiunea asupra serverului și a bazei de date, deoarece doar o parte din date este preluată la un moment dat.
+
+### **2. Experiența utilizatorului**
+- Face navigarea mai ușoară și mai intuitivă, deoarece utilizatorul nu este copleșit de o cantitate mare de informații.
+- Permite utilizatorului să găsească rapid ceea ce caută, fără a fi nevoit să parcurgă o listă lungă.
+
+### **3. Scalabilitate**
+- Permite aplicației să gestioneze volume mari de date fără a compromite performanța.
+
+---
+
+## **Cum funcționează paginarea?**
+
+### **1. Pe backend**
+- Serverul primește cereri de la client cu parametri precum `page` (pagina curentă) și `pageSize` (dimensiunea paginii).
+- Serverul interoghează baza de date pentru a prelua doar subsetul de date corespunzător paginii solicitate.
+- Serverul returnează datele către client, împreună cu informații suplimentare, cum ar fi numărul total de înregistrări.
+
+#### Exemplu de interogare SQL cu paginare:
+```sql
+SELECT * FROM tasks
+ORDER BY id
+LIMIT 10 OFFSET 20; -- Preia 10 înregistrări, începând cu a 21-a
+```
+
+#### Exemplu de implementare în Node.js/Express.js:
+```javascript
+app.get('/tasks', async (req, res) => {
+  const { page = 1, pageSize = 10 } = req.query;
+  const offset = (page - 1) * pageSize;
+
+  const tasks = await Task.findAll({
+    limit: parseInt(pageSize),
+    offset: parseInt(offset),
+  });
+
+  const total = await Task.count();
+  res.json({ total, tasks });
+});
+```
+
+---
+
+### **2. Pe frontend**
+- Clientul afișează doar datele corespunzătoare paginii curente.
+- Clientul oferă controale de navigare (de exemplu, butoane „Pagina următoare”, „Pagina anterioară”) pentru a permite utilizatorului să schimbe pagina.
+
+#### Exemplu de implementare în React:
+```javascript
+const TaskList = () => {
+  const [tasks, setTasks] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+
+  const fetchTasks = async () => {
+    const response = await axios.get('/tasks', {
+      params: { page, pageSize },
+    });
+    setTasks(response.data.tasks);
+    setTotal(response.data.total);
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, [page, pageSize]);
+
+  return (
+    <div>
+      <ul>
+        {tasks.map((task) => (
+          <li key={task.id}>{task.title}</li>
+        ))}
+      </ul>
+      <button onClick={() => setPage(page - 1)} disabled={page === 1}>
+        Pagina anterioară
+      </button>
+      <span>Pagina {page}</span>
+      <button onClick={() => setPage(page + 1)} disabled={page * pageSize >= total}>
+        Pagina următoare
+      </button>
+    </div>
+  );
+};
+```
+
+---
+
+## **Tipuri de paginare**
+
+### **1. Paginare bazată pe offset**
+- Utilizează parametri precum `page` și `pageSize` pentru a determina ce date să fie returnate.
+- Exemplu: `LIMIT 10 OFFSET 20` (preia 10 înregistrări, începând cu a 21-a).
+
+### **2. Paginare bazată pe cursor**
+- Utilizează un identificator unic (de exemplu, `id`) pentru a marca poziția în setul de date.
+- Exemplu: `WHERE id > lastId LIMIT 10` (preia 10 înregistrări după ultimul ID văzut).
+
+---
+
+## **Exemplu practic**
+### **Cerere API cu paginare**
+- URL: `GET /tasks?page=2&pageSize=10`
+- Răspuns:
+  ```json
+  {
+    "total": 100,
+    "tasks": [
+      { "id": 11, "title": "Task 11" },
+      { "id": 12, "title": "Task 12" },
+      ...
+    ]
+  }
+  ```
+
+---
+
+## **Concluzie**
+Paginarea este o tehnică esențială pentru a gestiona eficient volume mari de date în aplicațiile web. Ea îmbunătățește performanța, experiența utilizatorului și scalabilitatea aplicației. Dacă ai nevoie de ajutor pentru a implementa paginarea în proiectul tău, sunt aici să te ajut!
