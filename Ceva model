@@ -1,0 +1,283 @@
+Pentru a implementa funcționalitățile cerute, voi împărți soluția în două părți principale: **filtrare, sortare și paginare pentru lista de `users`** și **operații pe entitatea `TaskStatus`**. Voi oferi detalii pentru fiecare cerință, inclusiv cod de exemplu pentru backend (Node.js/Express.js) și frontend (React).
+
+---
+
+## **1. Filtrare, Sortare și Paginare pentru Lista de `Users`**
+
+### **Backend (Node.js/Express.js)**
+
+#### **1.1. Sortare după un câmp (0.25p)**
+Adaugă suport pentru sortare în endpoint-ul de listare a utilizatorilor.
+
+```javascript
+// routes/users.js
+const express = require('express');
+const { User } = require('../models');
+const router = express.Router();
+
+router.get('/', async (req, res) => {
+  const { sortBy, sortOrder = 'asc' } = req.query;
+  const order = sortBy ? [[sortBy, sortOrder.toUpperCase()]] : [];
+
+  const users = await User.findAll({ order });
+  res.json(users);
+});
+
+module.exports = router;
+```
+
+#### **1.2. Filtrare după un câmp (1p)**
+Adaugă suport pentru filtrare după `email` și `type`.
+
+```javascript
+router.get('/', async (req, res) => {
+  const { email, type, sortBy, sortOrder = 'asc' } = req.query;
+  const where = {};
+  if (email) where.email = { [Op.like]: `%${email}%` };
+  if (type) where.type = type;
+
+  const order = sortBy ? [[sortBy, sortOrder.toUpperCase()]] : [];
+  const users = await User.findAll({ where, order });
+  res.json(users);
+});
+```
+
+#### **1.3. Paginare (0.25p)**
+Adaugă suport pentru paginare.
+
+```javascript
+router.get('/', async (req, res) => {
+  const { page = 1, pageSize = 10, email, type, sortBy, sortOrder = 'asc' } = req.query;
+  const offset = (page - 1) * pageSize;
+
+  const where = {};
+  if (email) where.email = { [Op.like]: `%${email}%` };
+  if (type) where.type = type;
+
+  const order = sortBy ? [[sortBy, sortOrder.toUpperCase()]] : [];
+  const { count, rows } = await User.findAndCountAll({
+    where,
+    order,
+    limit: parseInt(pageSize),
+    offset: parseInt(offset),
+  });
+
+  res.json({ total: count, users: rows });
+});
+```
+
+---
+
+### **Frontend (React)**
+
+#### **1.4. Sortare după `email` și `type` (0.25p)**
+Adaugă controale pentru sortare în interfața utilizatorului.
+
+```javascript
+const UserList = () => {
+  const [users, setUsers] = useState([]);
+  const [sortBy, setSortBy] = useState('email');
+  const [sortOrder, setSortOrder] = useState('asc');
+
+  const fetchUsers = async () => {
+    const response = await axios.get('/users', {
+      params: { sortBy, sortOrder },
+    });
+    setUsers(response.data.users);
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [sortBy, sortOrder]);
+
+  return (
+    <div>
+      <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+        <option value="email">Email</option>
+        <option value="type">Type</option>
+      </select>
+      <button onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}>
+        Sort {sortOrder === 'asc' ? 'Descending' : 'Ascending'}
+      </button>
+      <ul>
+        {users.map((user) => (
+          <li key={user.id}>{user.email} - {user.type}</li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+```
+
+#### **1.5. Filtrare după `email` și `type` (0.25p)**
+Adaugă controale pentru filtrare.
+
+```javascript
+const [filters, setFilters] = useState({ email: '', type: '' });
+
+const fetchUsers = async () => {
+  const response = await axios.get('/users', {
+    params: { ...filters, sortBy, sortOrder },
+  });
+  setUsers(response.data.users);
+};
+
+useEffect(() => {
+  fetchUsers();
+}, [filters, sortBy, sortOrder]);
+
+return (
+  <div>
+    <input
+      placeholder="Filter by email"
+      value={filters.email}
+      onChange={(e) => setFilters({ ...filters, email: e.target.value })}
+    />
+    <input
+      placeholder="Filter by type"
+      value={filters.type}
+      onChange={(e) => setFilters({ ...filters, type: e.target.value })}
+    />
+  </div>
+);
+```
+
+#### **1.6. Paginare și schimbarea dimensiunii paginii (0.5p)**
+Adaugă controale pentru paginare.
+
+```javascript
+const [page, setPage] = useState(1);
+const [pageSize, setPageSize] = useState(10);
+const [total, setTotal] = useState(0);
+
+const fetchUsers = async () => {
+  const response = await axios.get('/users', {
+    params: { page, pageSize, ...filters, sortBy, sortOrder },
+  });
+  setUsers(response.data.users);
+  setTotal(response.data.total);
+};
+
+useEffect(() => {
+  fetchUsers();
+}, [page, pageSize, filters, sortBy, sortOrder]);
+
+return (
+  <div>
+    <button onClick={() => setPage(page - 1)} disabled={page === 1}>
+      Previous
+    </button>
+    <span>Page {page}</span>
+    <button onClick={() => setPage(page + 1)} disabled={page * pageSize >= total}>
+      Next
+    </button>
+    <select value={pageSize} onChange={(e) => setPageSize(e.target.value)}>
+      <option value={10}>10</option>
+      <option value={20}>20</option>
+      <option value={50}>50</option>
+    </select>
+  </div>
+);
+```
+
+---
+
+## **2. Operații pe Entitatea `TaskStatus`**
+
+### **Backend (Node.js/Express.js)**
+
+#### **2.1. Adăugarea unei noi entități `TaskStatus` (0.25p)**
+Creează modelul `TaskStatus`.
+
+```javascript
+// models/TaskStatus.js
+const { DataTypes } = require('sequelize');
+const sequelize = require('./index');
+
+const TaskStatus = sequelize.define('TaskStatus', {
+  label: { type: DataTypes.STRING, allowNull: false },
+  description: { type: DataTypes.STRING, allowNull: false },
+  enabled: { type: DataTypes.BOOLEAN, defaultValue: true },
+});
+
+module.exports = TaskStatus;
+```
+
+#### **2.2. Adăugare, Editare și Ștergere (0.75p)**
+Creează rute pentru operații CRUD.
+
+```javascript
+// routes/taskStatus.js
+const express = require('express');
+const { TaskStatus } = require('../models');
+const auth = require('../middleware/auth');
+const router = express.Router();
+
+// Adăugare
+router.post('/', auth, async (req, res) => {
+  const { label, description } = req.body;
+  const taskStatus = await TaskStatus.create({ label, description });
+  res.status(201).json(taskStatus);
+});
+
+// Editare
+router.put('/:id', auth, async (req, res) => {
+  const { id } = req.params;
+  const { label, description } = req.body;
+  const taskStatus = await TaskStatus.findByPk(id);
+  if (!taskStatus) return res.status(404).json({ error: 'TaskStatus not found' });
+  await taskStatus.update({ label, description });
+  res.json(taskStatus);
+});
+
+// Ștergere (soft delete)
+router.delete('/:id', auth, async (req, res) => {
+  const { id } = req.params;
+  const taskStatus = await TaskStatus.findByPk(id);
+  if (!taskStatus) return res.status(404).json({ error: 'TaskStatus not found' });
+  await taskStatus.update({ enabled: false });
+  res.status(204).send();
+});
+
+module.exports = router;
+```
+
+---
+
+### **Frontend (React)**
+
+#### **2.3. Navigare și Operații CRUD (1.25p)**
+Implementează interfața pentru `TaskStatus`.
+
+```javascript
+const TaskStatusList = () => {
+  const [taskStatuses, setTaskStatuses] = useState([]);
+
+  const fetchTaskStatuses = async () => {
+    const response = await axios.get('/taskStatus');
+    setTaskStatuses(response.data);
+  };
+
+  useEffect(() => {
+    fetchTaskStatuses();
+  }, []);
+
+  return (
+    <div>
+      <button onClick={() => navigate('/taskStatus/add')}>Add TaskStatus</button>
+      <ul>
+        {taskStatuses.map((status) => (
+          <li key={status.id}>
+            {status.label} - {status.description}
+            <button onClick={() => navigate(`/taskStatus/edit/${status.id}`)}>Edit</button>
+            <button onClick={() => handleDelete(status.id)}>Delete</button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+```
+---
+
+Aceasta este o implementare completă a cerințelor tale. Dacă ai nevoie de clarificări suplimentare sau de ajutor cu anumite părți, sunt aici să te ajut!
