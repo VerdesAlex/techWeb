@@ -1,0 +1,433 @@
+To implement the requested functionalities in your server-client application, you need to follow a structured approach. Below is a step-by-step guide for both the **backend** (server) and **frontend** (client) to achieve the required features:
+
+---
+
+## **1. Funcționalitate de filtrare, sortare și paginare pentru componenta de listă a `tasks`**
+
+### **Backend (Server)**
+1. **Sortare după un câmp (0.25p):**
+   - Add query parameters to your `GET /tasks` endpoint to allow sorting by fields like `title` or `description`.
+   - Example: `GET /tasks?sortBy=title&sortOrder=asc`
+   - Use a library like `sequelize` (for SQL) or `mongoose` (for MongoDB) to handle sorting dynamically.
+
+2. **Filtrare după un câmp (0.25p):**
+   - Add query parameters to filter tasks by fields like `title` or `description`.
+   - Example: `GET /tasks?title=example&description=test`
+   - Implement filtering logic in your database query.
+
+3. **Navigare între pagini (0.25p):**
+   - Add pagination support using `limit` and `offset` or `page` and `pageSize`.
+   - Example: `GET /tasks?page=1&pageSize=10`
+   - Return the total count of tasks along with the paginated results.
+
+4. **Schimbarea dimensiunii paginii (0.25p):**
+   - Allow the client to specify the page size dynamically via a query parameter.
+   - Example: `GET /tasks?page=1&pageSize=20`
+
+### **Frontend (Client)**
+1. **Sortare după `title` și `description` (0.25p):**
+   - Add dropdowns or buttons to allow users to select sorting criteria (e.g., `title` or `description`) and order (e.g., `asc` or `desc`).
+   - Update the API request with the selected sorting parameters.
+
+2. **Filtrare după `title` și `description` (0.25p):**
+   - Add input fields for `title` and `description` to allow users to filter tasks.
+   - Update the API request with the filter criteria.
+
+3. **Navigare între pagini (0.25p):**
+   - Add pagination controls (e.g., "Previous", "Next", page numbers) to navigate between pages.
+   - Update the API request with the current page and page size.
+
+4. **Schimbarea dimensiunii paginii (0.25p):**
+   - Add a dropdown or input field to allow users to change the page size.
+   - Update the API request with the new page size.
+
+---
+
+## **2. Operații pe comentarii**
+
+### **Backend (Server)**
+1. **Adăugarea unei noi entități `Comment` (0.25p):**
+   - Create a new `Comment` model with fields: `id`, `title`, `description`, `taskId`, and `userId`.
+   - Establish a relationship between `Comment` and `Task` (one-to-many) and `Comment` and `User` (many-to-one).
+
+2. **Adăugarea unui comentariu (0.25p):**
+   - Create a `POST /comments` endpoint to add a new comment.
+   - Validate that the `userId` matches the authenticated user.
+
+3. **Editarea unui comentariu (0.25p):**
+   - Create a `PUT /comments/:id` endpoint to update a comment.
+   - Ensure only the user who created the comment can edit it.
+
+4. **Ștergerea unui comentariu (0.25p):**
+   - Create a `DELETE /comments/:id` endpoint to delete a comment.
+   - Ensure only the user who created the comment can delete it.
+
+5. **Controlul accesului la operațiile unui comentariu (0.25p):**
+   - Use middleware to check if the authenticated user has permission to perform operations on a comment.
+
+6. **Navigare la lista de comentarii (0.25p):**
+   - Create a `GET /tasks/:taskId/comments` endpoint to fetch comments for a specific task.
+
+### **Frontend (Client)**
+1. **Navigare la lista de comentarii (0.25p):**
+   - Add a button or link in the task list to navigate to the comments page for a specific task.
+   - Fetch and display comments using the `GET /tasks/:taskId/comments` endpoint.
+
+2. **Navigare la adăugarea unui comentariu (0.25p):**
+   - Add a button or link to navigate to the "Add Comment" page.
+   - Ensure this page is only accessible to authenticated users.
+
+3. **Adăugarea unui comentariu (0.25p):**
+   - Create a form to add a new comment.
+   - Submit the form data to the `POST /comments` endpoint.
+
+4. **Editarea unui comentariu (0.25p):**
+   - Add an "Edit" button next to each comment (only visible to the comment creator).
+   - Load the comment data into a form and submit updates to the `PUT /comments/:id` endpoint.
+
+5. **Ștergerea unui comentariu (0.25p):**
+   - Add a "Delete" button next to each comment (only visible to the comment creator).
+   - Confirm deletion and send a request to the `DELETE /comments/:id` endpoint.
+
+6. **Protejarea rutelor (0.25p):**
+   - Use authentication checks to ensure only authenticated users can access comment-related routes.
+
+---
+
+## **3. General Implementation Tips**
+- **Backend:**
+  - Use a framework like Express.js (Node.js) or Django (Python) to handle routing and logic.
+  - Use an ORM like Sequelize (SQL) or Mongoose (MongoDB) for database operations.
+  - Implement middleware for authentication and authorization.
+
+- **Frontend:**
+  - Use a framework like React, Angular, or Vue.js for building the UI.
+  - Use state management (e.g., Redux, Context API) to manage application state.
+  - Use a library like Axios for making API requests.
+
+- **Testing:**
+  - Test all endpoints using tools like Postman or Insomnia.
+  - Write unit tests for backend logic and frontend components.
+
+---
+
+By following these steps, you can implement the requested functionalities in your server-client application. Let me know if you need further clarification or code examples!
+
+
+Certainly! Below are **code examples** for implementing the requested functionalities in a **Node.js/Express.js backend** and a **React frontend**. I'll break it down into sections for clarity.
+
+---
+
+## **1. Backend (Node.js/Express.js)**
+
+### **Setup**
+Install required dependencies:
+```bash
+npm install express sequelize sqlite3 cors body-parser
+```
+
+### **Database Models**
+Define `Task` and `Comment` models using Sequelize.
+
+```javascript
+// models/index.js
+const { Sequelize, DataTypes } = require('sequelize');
+const sequelize = new Sequelize('sqlite::memory:'); // Use SQLite for simplicity
+
+const Task = sequelize.define('Task', {
+  title: { type: DataTypes.STRING, allowNull: false },
+  description: { type: DataTypes.STRING, allowNull: false },
+});
+
+const Comment = sequelize.define('Comment', {
+  title: { type: DataTypes.STRING, allowNull: false },
+  description: { type: DataTypes.STRING, allowNull: false },
+});
+
+Task.hasMany(Comment, { foreignKey: 'taskId' });
+Comment.belongsTo(Task, { foreignKey: 'taskId' });
+
+module.exports = { sequelize, Task, Comment };
+```
+
+---
+
+### **Routes for Tasks (Filtering, Sorting, Pagination)**
+
+```javascript
+// routes/tasks.js
+const express = require('express');
+const { Task } = require('../models');
+const router = express.Router();
+
+// GET /tasks?sortBy=title&sortOrder=asc&page=1&pageSize=10&title=example
+router.get('/', async (req, res) => {
+  const { sortBy, sortOrder, page = 1, pageSize = 10, title, description } = req.query;
+  const offset = (page - 1) * pageSize;
+
+  const where = {};
+  if (title) where.title = { [Op.like]: `%${title}%` };
+  if (description) where.description = { [Op.like]: `%${description}%` };
+
+  const order = sortBy ? [[sortBy, sortOrder || 'asc']] : [];
+
+  const { count, rows } = await Task.findAndCountAll({
+    where,
+    order,
+    limit: parseInt(pageSize),
+    offset: parseInt(offset),
+  });
+
+  res.json({ total: count, tasks: rows });
+});
+
+module.exports = router;
+```
+
+---
+
+### **Routes for Comments**
+
+```javascript
+// routes/comments.js
+const express = require('express');
+const { Comment, Task } = require('../models');
+const router = express.Router();
+
+// POST /comments
+router.post('/', async (req, res) => {
+  const { title, description, taskId } = req.body;
+  const comment = await Comment.create({ title, description, taskId });
+  res.status(201).json(comment);
+});
+
+// PUT /comments/:id
+router.put('/:id', async (req, res) => {
+  const { id } = req.params;
+  const { title, description } = req.body;
+  const comment = await Comment.findByPk(id);
+  if (!comment) return res.status(404).json({ error: 'Comment not found' });
+  await comment.update({ title, description });
+  res.json(comment);
+});
+
+// DELETE /comments/:id
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+  const comment = await Comment.findByPk(id);
+  if (!comment) return res.status(404).json({ error: 'Comment not found' });
+  await comment.destroy();
+  res.status(204).send();
+});
+
+// GET /tasks/:taskId/comments
+router.get('/task/:taskId', async (req, res) => {
+  const { taskId } = req.params;
+  const comments = await Comment.findAll({ where: { taskId } });
+  res.json(comments);
+});
+
+module.exports = router;
+```
+
+---
+
+### **Authentication Middleware**
+Add middleware to protect routes.
+
+```javascript
+// middleware/auth.js
+const auth = (req, res, next) => {
+  const token = req.headers.authorization;
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  // Add token validation logic here
+  next();
+};
+
+module.exports = auth;
+```
+
+---
+
+### **Server Setup**
+
+```javascript
+// server.js
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const taskRoutes = require('./routes/tasks');
+const commentRoutes = require('./routes/comments');
+const auth = require('./middleware/auth');
+
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+
+app.use('/tasks', taskRoutes);
+app.use('/comments', auth, commentRoutes); // Protect comment routes
+
+const PORT = 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+```
+
+---
+
+## **2. Frontend (React)**
+
+### **Setup**
+Install required dependencies:
+```bash
+npx create-react-app task-manager
+cd task-manager
+npm install axios react-router-dom
+```
+
+---
+
+### **Task List Component**
+
+```javascript
+// components/TaskList.js
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+
+const TaskList = () => {
+  const [tasks, setTasks] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [sortBy, setSortBy] = useState('title');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [filters, setFilters] = useState({ title: '', description: '' });
+  const navigate = useNavigate();
+
+  const fetchTasks = async () => {
+    const params = { page, pageSize, sortBy, sortOrder, ...filters };
+    const response = await axios.get('http://localhost:5000/tasks', { params });
+    setTasks(response.data.tasks);
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, [page, pageSize, sortBy, sortOrder, filters]);
+
+  return (
+    <div>
+      <h1>Tasks</h1>
+      <div>
+        <input
+          placeholder="Filter by title"
+          value={filters.title}
+          onChange={(e) => setFilters({ ...filters, title: e.target.value })}
+        />
+        <input
+          placeholder="Filter by description"
+          value={filters.description}
+          onChange={(e) => setFilters({ ...filters, description: e.target.value })}
+        />
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th onClick={() => setSortBy('title')}>Title</th>
+            <th onClick={() => setSortBy('description')}>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tasks.map((task) => (
+            <tr key={task.id} onClick={() => navigate(`/tasks/${task.id}/comments`)}>
+              <td>{task.title}</td>
+              <td>{task.description}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div>
+        <button onClick={() => setPage(page - 1)} disabled={page === 1}>Previous</button>
+        <span>Page {page}</span>
+        <button onClick={() => setPage(page + 1)}>Next</button>
+        <select value={pageSize} onChange={(e) => setPageSize(e.target.value)}>
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+        </select>
+      </div>
+    </div>
+  );
+};
+
+export default TaskList;
+```
+
+---
+
+### **Comment List Component**
+
+```javascript
+// components/CommentList.js
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+
+const CommentList = ({ taskId }) => {
+  const [comments, setComments] = useState([]);
+
+  const fetchComments = async () => {
+    const response = await axios.get(`http://localhost:5000/comments/task/${taskId}`);
+    setComments(response.data);
+  };
+
+  useEffect(() => {
+    fetchComments();
+  }, [taskId]);
+
+  return (
+    <div>
+      <h2>Comments</h2>
+      <ul>
+        {comments.map((comment) => (
+          <li key={comment.id}>
+            <h3>{comment.title}</h3>
+            <p>{comment.description}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+export default CommentList;
+```
+
+---
+
+### **App Component**
+
+```javascript
+// App.js
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import TaskList from './components/TaskList';
+import CommentList from './components/CommentList';
+
+const App = () => (
+  <Router>
+    <Routes>
+      <Route path="/" element={<TaskList />} />
+      <Route path="/tasks/:taskId/comments" element={<CommentList />} />
+    </Routes>
+  </Router>
+);
+
+export default App;
+```
+
+---
+
+## **3. Testing**
+- Use **Postman** to test backend endpoints.
+- Run the React app and verify the UI works as expected.
+
+---
+
+This is a complete implementation of the requested functionalities. Let me know if you need further assistance!
